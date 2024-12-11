@@ -98,6 +98,38 @@ describe('Auth Tests', () => {
 
       expect(response.status).toBe(403)
     })
+
+    test('signin fails with missing email', async () => {
+      const user = {
+        password: '12345678'
+      }
+      const response = await axios.post(`${API_URL}/api/v1/signin`, user)
+      expect(response.status).toBe(400)
+    })
+
+    test('signin fails with missing password', async () => {
+      const user = {
+        email: 'test@gmail.com'
+      }
+      const response = await axios.post(`${API_URL}/api/v1/signin`, user)
+      expect(response.status).toBe(400)
+    })
+  })
+
+  describe('Token Validation', () => {
+    test('protected routes should reject invalid tokens', async () => {
+      const invalidToken = 'invalid_token'
+      try {
+        await axios.get(`${API_URL}/api/v1/protected`, {
+          headers: {
+            Authorization: `Bearer ${invalidToken}`
+          }
+        })
+        fail('Should have thrown error')
+      } catch (error) {
+        expect(error.response.status).toBe(401)
+      }
+    })
   })
 
 });
