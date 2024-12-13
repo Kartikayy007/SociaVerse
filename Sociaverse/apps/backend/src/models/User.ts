@@ -17,6 +17,16 @@ const UserSchema: Schema<IUser> = new Schema(
   { timestamps: true }
 );
 
+const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
+UserSchema.path('password').validate(function(value: string) {
+    return passwordRegex.test(value);
+}, 'Password must be at least 8 characters, contain letters and numbers');
+
+UserSchema.path('email').validate(function(email: string) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}, 'Invalid email format');
+
 UserSchema.pre<IUser>('save', async function (next) {
   if (!this.isModified('password')) return next();
   const salt = await bcrypt.genSalt(10);
