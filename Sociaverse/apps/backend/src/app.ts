@@ -1,7 +1,8 @@
 import express, { Express } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import routes from './routes/auth';
+import authRoutes from './routes/auth';
+import profileRoutes from './routes/Profile';
 import connectDB from './config/database';
 
 dotenv.config();
@@ -13,7 +14,8 @@ connectDB();
 
 app.use(cors());
 app.use(express.json());
-app.use('/api/v1', routes);
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/profile', profileRoutes);
 
 app.listen(port, () => {
   console.log(`⚡️[server]: Server running at http://localhost:${port}`);
