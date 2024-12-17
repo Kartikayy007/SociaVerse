@@ -16,7 +16,7 @@ const authMiddleware = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
-): Promise<Response | void> => {
+): Promise<void> => {
   try {
     const JWT_SECRET = process.env.JWT_SECRET;
     if (!JWT_SECRET) {
@@ -26,18 +26,20 @@ const authMiddleware = async (
     const authHeader = req.header('Authorization');
 
     if (!authHeader?.startsWith('Bearer ')) {
-      return res.status(401).json({
+       res.status(401).json({
         status: 'error',
         message: 'Invalid authorization format'
       });
+      return;
     }
 
     const token = authHeader.split(' ')[1];
     if (!token) {
-      return res.status(401).json({
+       res.status(401).json({
         status: 'error',
         message: 'No token, authorization denied'
       });
+      return;
     }
 
     const decoded = jwt.verify(token, JWT_SECRET) as jwt.JwtPayload;
@@ -46,13 +48,14 @@ const authMiddleware = async (
       email: decoded.email,
       username: decoded.username
     };
-    return next();
+    next();
   } catch (error) {
     console.error('Auth middleware error:', error);
-    return res.status(401).json({
+     res.status(401).json({
       status: 'error',
       message: error instanceof Error ? error.message : 'Authentication failed'
     });
+
   }
 };
 

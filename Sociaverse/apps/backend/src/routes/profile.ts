@@ -6,39 +6,42 @@ import mongoose from 'mongoose';
 
 const router = Router();
 
-const createProfile: RequestHandler = async (req: AuthRequest, res: Response) => {
+const createProfile: RequestHandler = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const { avatar, bio } = req.body;
         const userId = req.user?.id;
 
         if (!userId) {
-            return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+             res.status(401).json({ status: 'error', message: 'Unauthorized' });
+             return;
         }
-
-        // Validate bio length if provided
+  
         if (bio && bio.length > 500) {
-            return res.status(400).json({ 
+             res.status(400).json({ 
                 status: 'error', 
                 message: 'Bio cannot exceed 500 characters' 
             });
+            return;
         }
 
-        // Validate avatar
         if (!avatar || !VALID_AVATARS.includes(avatar)) {
-            return res.status(400).json({ 
+             res.status(400).json({ 
                 status: 'error', 
                 message: `Invalid avatar. Please choose from: ${VALID_AVATARS.join(', ')}` 
             });
+            return;
         }
 
         const user = await User.findById(userId);
         if (!user) {
-            return res.status(404).json({ status: 'error', message: 'User not found' });
+             res.status(404).json({ status: 'error', message: 'User not found' });
+             return;
         }
 
         const existingProfile = await Profile.findOne({ userId });
         if (existingProfile) {
-            return res.status(400).json({ status: 'error', message: 'Profile already exists' });
+             res.status(400).json({ status: 'error', message: 'Profile already exists' });
+             return;
         }
 
         const profile = new Profile({
@@ -49,10 +52,10 @@ const createProfile: RequestHandler = async (req: AuthRequest, res: Response) =>
         });
 
         await profile.save();
-        return res.status(201).json({ status: 'success', data: profile });
+         res.status(201).json({ status: 'success', data: profile });
     } catch (error) {
         console.error('Create profile error:', error);
-        return res.status(500).json({
+         res.status(500).json({
             status: 'error',
             message: 'Server error',
             error: (error as Error).message
@@ -60,53 +63,57 @@ const createProfile: RequestHandler = async (req: AuthRequest, res: Response) =>
     }
 };
 
-const updateProfile: RequestHandler = async (req: AuthRequest, res: Response) => {
+const updateProfile: RequestHandler = async (req: AuthRequest, res: Response):Promise<void> => {
     try {
         const { bio, username, avatar } = req.body;
         const userId = req.user?.id;
 
         if (!userId) {
-            return res.status(401).json({ status: 'error', message: 'Unauthorized' });
+             res.status(401).json({ status: 'error', message: 'Unauthorized' });
+             return;
         }
 
         // Validate avatar if provided
         if (avatar && !VALID_AVATARS.includes(avatar)) {
-            return res.status(400).json({ 
+             res.status(400).json({ 
                 status: 'error', 
                 message: 'Please select a valid avatar' 
             });
+            return;
         }
 
         // Input validation
         if (bio && bio.length > 500) {
-            return res.status(400).json({ 
+             res.status(400).json({ 
                 status: 'error', 
                 message: 'Bio cannot exceed 500 characters' 
             });
+            return;
         }
 
         if (username) {
-            // Check username format
             if (username.length < 3 || username.length > 30) {
-                return res.status(400).json({ 
+                 res.status(400).json({ 
                     status: 'error', 
                     message: 'Username must be between 3 and 30 characters' 
                 });
+                return;
             }
 
-            // Check if username is already taken
             const existingUser = await User.findOne({ username, _id: { $ne: userId } });
             if (existingUser) {
-                return res.status(400).json({ 
+                 res.status(400).json({ 
                     status: 'error', 
                     message: 'Username already taken' 
                 });
+                return;
             }
         }
 
         const profile = await Profile.findOne({ userId });
         if (!profile) {
-            return res.status(404).json({ status: 'error', message: 'Profile not found' });
+             res.status(404).json({ status: 'error', message: 'Profile not found' });
+             return;
         }
 
         if (bio) profile.bio = bio;
@@ -117,9 +124,9 @@ const updateProfile: RequestHandler = async (req: AuthRequest, res: Response) =>
         if (avatar) profile.avatar = avatar;
 
         await profile.save();
-        return res.status(200).json({ status: 'success', data: profile });
+         res.status(200).json({ status: 'success', data: profile });
     } catch (error) {
-        return res.status(500).json({
+         res.status(500).json({
             status: 'error',
             message: 'Server error',
             error: (error as Error).message
@@ -127,23 +134,24 @@ const updateProfile: RequestHandler = async (req: AuthRequest, res: Response) =>
     }
 };
 
-const getProfile: RequestHandler = async (req: Request, res: Response) => {
+const getProfile: RequestHandler = async (req: Request, res: Response):Promise<void> => {
     try {
         const { userId } = req.params;
 
         if (!userId) {
-            return res.status(400).json({ 
+             res.status(400).json({ 
                 status: 'error', 
                 message: 'User ID is required' 
             });
+            return;
         }
 
-        // Validate userId format
         if (!mongoose.Types.ObjectId.isValid(userId)) {
-            return res.status(400).json({ 
+             res.status(400).json({ 
                 status: 'error', 
                 message: 'Invalid user ID format' 
             });
+            return;
         }
 
         const profile = await Profile.findOne({ userId })
@@ -151,25 +159,27 @@ const getProfile: RequestHandler = async (req: Request, res: Response) => {
             .select('-__v');
 
         if (!profile) {
-            return res.status(404).json({ 
+             res.status(404).json({ 
                 status: 'error', 
                 message: 'Profile not found' 
             });
+            return;
         }
 
-        return res.status(200).json({
+         res.status(200).json({
             status: 'success',
-            data: profile.toObject() // Use toObject() to convert mongoose document to plain object
+            data: profile.toObject() 
         });
     } catch (error) {
         if (error instanceof mongoose.Error) {
-            return res.status(400).json({
+             res.status(400).json({
                 status: 'error',
                 message: 'Database error',
                 error: error.message
             });
+            return;
         }
-        return res.status(500).json({
+        res.status(500).json({
             status: 'error',
             message: 'Server error',
             error: (error as Error).message

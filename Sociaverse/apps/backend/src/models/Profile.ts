@@ -1,11 +1,9 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export enum Avatar {
-  CASUAL = '/avatars/casual.png',
-  PROFESSIONAL = '/avatars/professional.png',
-  CREATIVE = '/avatars/creative.png',
-  GAMING = '/avatars/gaming.png',
-  TECH = '/avatars/tech.png'
+  CASUAL = '1',
+  PROFESSIONAL = '2',
+  CREATIVE = '3'
 }
 
 export const VALID_AVATARS = Object.values(Avatar);
