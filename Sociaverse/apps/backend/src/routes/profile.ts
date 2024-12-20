@@ -73,7 +73,6 @@ const updateProfile: RequestHandler = async (req: AuthRequest, res: Response):Pr
              return;
         }
 
-        // Validate avatar if provided
         if (avatar && !VALID_AVATARS.includes(avatar)) {
              res.status(400).json({ 
                 status: 'error', 
@@ -82,7 +81,6 @@ const updateProfile: RequestHandler = async (req: AuthRequest, res: Response):Pr
             return;
         }
 
-        // Input validation
         if (bio && bio.length > 500) {
              res.status(400).json({ 
                 status: 'error', 

@@ -8,7 +8,7 @@ import MuiAlert from '@mui/material/Alert';
 
 const CreateProfile = () => {
   const [formData, setFormData] = useState({
-    avatar: '1',
+    avatar: '',
     bio: ''
   });
   const [error, setError] = useState('');
@@ -81,7 +81,7 @@ const CreateProfile = () => {
                   }`}
                 >
                   <img
-                    src={`/avatar${avatarId}.jpg`}
+                    src={`/main${avatarId}.jpg`}
                     alt={`Avatar ${avatarId}`}
                     className="w-full h-auto rounded-lg"
                   />
