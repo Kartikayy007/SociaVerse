@@ -6,7 +6,7 @@ dotenv.config();
 
 export interface AuthRequest extends Request {
   user?: {
-    id: string;
+    id?: string;
     email?: string;
     username?: string;
   };

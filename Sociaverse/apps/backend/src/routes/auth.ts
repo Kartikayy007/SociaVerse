@@ -48,21 +48,26 @@ router.post('/signup', async (req, res) => {
 });
 
 router.post('/signin', async (req, res) => {
-  const { email, password } = req.body;
+  const { login, password } = req.body; 
 
-  if (!email || !password) {
-     
+  if (!login || !password) {
     res.status(400).json({
-      status: 'error', 
+      status: 'error',
       message: 'All fields are required'
     });
     return;
   }
 
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({
+      $or: [
+        { email: login },
+        { username: login }
+      ]
+    });
+
     if (!user) {
-       res.status(404).json({
+      res.status(404).json({
         status: 'error',
         message: 'User not found'
       });
@@ -71,7 +76,7 @@ router.post('/signin', async (req, res) => {
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-       res.status(400).json({
+      res.status(400).json({
         status: 'error',
         message: 'Invalid credentials'
       });

@@ -17,7 +17,7 @@ const UserSchema: Schema<IUser> = new Schema(
   { timestamps: true }
 );
 
-const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
+const passwordRegex = /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]{8,}$/;
 UserSchema.path('password').validate(function(value: string) {
     return passwordRegex.test(value);
 }, 'Password must be at least 8 characters, contain letters and numbers');

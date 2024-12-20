@@ -3,11 +3,68 @@
 import React, { useEffect, useState } from 'react';
 import { FcGoogle } from 'react-icons/fc';
 import { AiOutlineEye, AiOutlineEyeInvisible } from 'react-icons/ai';
+import Link from 'next/link';
+import axios from 'axios';
+import Snackbar from '@mui/material/Snackbar';
+import MuiAlert from '@mui/material/Alert';
 
 const SignUpForm = () => {
   const [showPassword, setShowPassword] = React.useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const images = ['/main1.jpg', '/main2.jpg', '/main3.jpg'];
+  const [formData, setFormData] = useState({
+    username: '',
+    email: '',
+    password: ''
+  });
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+
+  const passwordRegex = /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]{8,}$/;
+
+  const handleClose = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setOpenSnackbar(false);
+  };
+
+  const handleSignUp = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setIsLoading(true);
+  
+    if (!passwordRegex.test(formData.password)) {
+      setError('Password must be at least 8 characters with 1 capital letter and 1 number (special characters allowed)');
+      setOpenSnackbar(true);
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const response = await axios.post('http://localhost:4000/api/v1/auth/signup', formData);
+      
+      if (response.data.status === 'success') {
+        setSuccess(response.data.message);
+        setFormData({ username: '', email: '', password: '' });
+        setOpenSnackbar(true);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Signup failed');
+      setOpenSnackbar(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleChange = (e) => {
+    setFormData(prev => ({
+      ...prev,
+      [e.target.name]: e.target.value
+    }));
+  };
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -17,11 +74,12 @@ const SignUpForm = () => {
     return () => clearInterval(timer);
   }, []);
 
+  const images = ['/main1.jpg', '/main2.jpg', '/main3.jpg'];
+
   return (
     <section className="min-h-screen bg-[#F5F2EC] relative">
-      <div className="flex min-h-screen">
-        {/* Left side - Image */}
-        <div className="w-1/2 relative">
+      <div className="flex flex-col md:flex-row min-h-screen">
+         <div className="w-full md:w-1/2 relative h-[300px] md:h-auto">
           {images.map((img, index) => (
             <img
               key={img}
@@ -34,51 +92,67 @@ const SignUpForm = () => {
           ))}
         </div>
 
-        {/* Right side - Form */}
-        <div className="w-1/2 flex flex-col px-16 justify-center">
+        <div className="w-full md:w-1/2 p-4 md:p-8 lg:p-12 justify-center flex items-center">
           <div className="max-w-md w-full mx-auto">
-            {/* Back button */}
             <div className="mb-8">
-              <button className="text-gray-600 flex items-center gap-2">
-                ← Back to website
-              </button>
+              <Link href="/">
+                <button className="text-gray-600 flex items-center gap-2">
+                  ← Back to website
+                </button>
+              </Link>
             </div>
 
-            {/* Welcome text */}
             <div className="mb-8">
               <h1 className="text-3xl font-semibold mb-2">Welcome!</h1>
               <p className="text-gray-600">
                 <span>Create a free account</span>
                 {" or "}
-                <button className="text-gray-900 underline">log in</button>
-                {" to get started using SportWrench"}
+                <Link href="/auth/signin">
+                  <button className="text-gray-900 underline">log in</button>
+                </Link>
+                {" to get started using SociaVerse."}
               </p>
             </div>
 
-            {/* Form */}
-            <form className="space-y-4">
+            <form onSubmit={handleSignUp} className="space-y-4">
+              
               <div>
-                <label htmlFor="email" className="block text-sm text-gray-600 mb-1">
-                  Email
-                </label>
+                <label htmlFor="username" className="block text-sm text-gray-600 mb-1">Username</label>
                 <input
-                  type="email"
-                  id="email"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="chandler.blanks"
+                  type="text"
+                  id="username"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-full"
+                  required
                 />
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-sm text-gray-600 mb-1">
-                  Password
-                </label>
+                <label htmlFor="email" className="block text-sm text-gray-600 mb-1">Email</label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-full"
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-sm text-gray-600 mb-1">Password</label>
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
                     id="password"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-full"
+                    required
                   />
                   <button
                     type="button"
@@ -101,12 +175,12 @@ const SignUpForm = () => {
 
               <button
                 type="submit"
-                className="w-full bg-black text-white py-3 rounded-full hover:bg-gray-800 transition-colors"
+                disabled={isLoading}
+                className="w-full bg-black text-white py-3 rounded-full hover:bg-gray-800 transition-colors disabled:bg-gray-400"
               >
-                Log in
+                {isLoading ? 'Creating Account...' : 'Create Account'}
               </button>
 
-              {/* Social login buttons */}
               <div className="space-y-3">
                 <button
                   type="button"
@@ -133,6 +207,21 @@ const SignUpForm = () => {
           </div>
         </div>
       </div>
+      <Snackbar 
+        open={openSnackbar} 
+        autoHideDuration={6000} 
+        onClose={handleClose}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <MuiAlert
+          elevation={6}
+          variant="filled"
+          onClose={handleClose}
+          severity={error ? "error" : "success"}
+        >
+          {error || success}
+        </MuiAlert>
+      </Snackbar>
     </section>
   );
 };
