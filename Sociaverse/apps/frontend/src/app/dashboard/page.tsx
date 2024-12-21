@@ -1,62 +1,82 @@
-import React from 'react'
+"use client";
+import React, { useState } from 'react'
 import Navbar from '../../components/Navbar'
-import { Users } from 'lucide-react'
+import SpaceCard from '../../components/SpaceCard'
 
-const page = () => {
+const dummySpaces = [
+  {
+    id: 1,
+    name: "Space 1",
+    description: "A collaborative workspace for team projects",
+    members: 23,
+    lastVisited: "2024-03-20",
+    isOwner: true,
+    isPrivate: true,
+  },
+  {
+    id: 2,
+    name: "Space 2",
+    description: "Design team discussions and resources",
+    members: 15,
+    lastVisited: "2024-03-19",
+    isOwner: false,
+    isPrivate: false,
+  },
+  {
+    id: 3,
+    name: "Space 3",
+    description: "Marketing campaign planning",
+    members: 8,
+    lastVisited: "2024-03-18",
+    isOwner: true,
+    isPrivate: true,
+  }
+];
+
+const Page = () => {
+  const [filter, setFilter] = useState<'lastVisited' | 'mySpaces'>('lastVisited');
+
+  const filteredSpaces = filter === 'mySpaces' 
+    ? dummySpaces.filter(space => space.isOwner)
+    : dummySpaces.sort((a, b) => new Date(b.lastVisited).getTime() - new Date(a.lastVisited).getTime());
+
   return (
-    <section className='bg-[#F5F2EC] min-h-screen relative'>
-
-      <div className='fixed inset-0 z-0'>
-        <img 
-          src="/dashboard.jpg" 
-          alt="background" 
-          className='w-full h-full object-cover blur-md opacity-45'
-        />
-      </div>
-
+    <section className='bg-[#262626] min-h-screen relative'>
       <div className='relative z-10'>
         <Navbar />
         <main className='container mx-auto px-4 pt-32'>
-
           <div className='flex space-x-4 mb-8'>
-            <button className='px-6 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-colors'>
+            <button 
+              className={`px-6 py-2 rounded-full transition-colors ${
+                filter === 'lastVisited' 
+                  ? 'bg-black text-white' 
+                  : 'bg-white text-black hover:bg-gray-100'
+              }`}
+              onClick={() => setFilter('lastVisited')}
+            >
               Last Visited
             </button>
-            <button className='px-6 py-2 bg-white text-black rounded-full hover:bg-gray-100 transition-colors'>
+            <button 
+              className={`px-6 py-2 rounded-full transition-colors ${
+                filter === 'mySpaces' 
+                  ? 'bg-black text-white' 
+                  : 'bg-white text-black hover:bg-gray-100'
+              }`}
+              onClick={() => setFilter('mySpaces')}
+            >
               My Spaces
             </button>
           </div>
 
-          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 z-10'>
-            {[1, 2, 3, 4, 5, 6,7,8].map((space) => (
-              <div key={space} className='bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow'>
-                <div className='h-48 overflow-hidden'>
-                  <img 
-                    src={`https://source.unsplash.com/random/400x300?${space}`} 
-                    alt="Space cover" 
-                    className='w-full h-full object-cover'
-                  />
-                </div>
-                <div className='p-4'>
-                  <h3 className='text-xl font-semibold mb-2'>Space {space}</h3>
-                  <div className='flex items-center justify-between'>
-                    <div className='flex items-center space-x-2 text-gray-600'>
-                      <Users size={18} />
-                      <span>{Math.floor(Math.random() * 100) + 10} members</span>
-                    </div>
-                    <button className='px-4 py-1 bg-black text-white rounded-full text-sm hover:bg-gray-800 transition-colors'>
-                      Join Space
-                    </button>
-                  </div>
-                </div>
-              </div>
+          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 z-10'>
+            {filteredSpaces.map(space => (
+              <SpaceCard key={space.id} space={space} />
             ))}
           </div>
-
         </main>
       </div>
     </section>
   )
 }
 
-export default page
+export default Page
