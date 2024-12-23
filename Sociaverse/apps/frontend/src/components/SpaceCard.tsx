@@ -28,7 +28,7 @@ export const SpaceCard = ({ space }: SpaceProps) => {
           scale: 1.05,
         },
       }} 
-      className={`relative h-96 w-80 shrink-0 overflow-hidden rounded-xl p-4 ${
+      className={`relative h-[360px] w-full shrink-0 overflow-hidden mb-6 rounded-xl p-4 ${
         space.isPrivate ? 'bg-red-700' : 'bg-indigo-500'
       }`}
     >

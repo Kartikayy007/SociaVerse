@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import profileRoutes from './routes/profile';
+import spaceRoutes from './routes/space';
 import connectDB from './config/database';
 
 dotenv.config();
@@ -16,6 +17,7 @@ app.use(cors());
 app.use(express.json());
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/profile', profileRoutes);
+app.use('/api/v1/spaces', spaceRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
