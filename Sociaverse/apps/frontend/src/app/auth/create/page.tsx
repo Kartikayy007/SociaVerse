@@ -44,7 +44,7 @@ const CreateProfile = () => {
 
       if (response.data.status === 'success') {
         setSuccess('Profile created successfully!');
-        window.location.href = '/';
+        window.location.href = '/dashboard';
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to create profile');

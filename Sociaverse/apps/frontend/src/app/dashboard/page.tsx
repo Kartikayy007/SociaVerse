@@ -48,6 +48,61 @@ const Page = () => {
     </div>
   );
 
+  if (spaces.length === 0) return (
+    <section className='bg-[#262626] min-h-screen relative'>
+      <div className='relative z-10'>
+        <Navbar />
+        <main className='container mx-auto px-4 pt-32'>
+          <div className='flex items-center justify-between mb-8'>
+            <div className='flex space-x-4'>
+              <button 
+                className={`px-6 py-2 rounded-full transition-colors ${
+                  filter === 'lastVisited' 
+                    ? 'bg-black text-white' 
+                    : 'bg-white text-black hover:bg-gray-100'
+                }`}
+                onClick={() => setFilter('lastVisited')}
+              >
+                Last Visited
+              </button>
+              <button 
+                className={`px-6 py-2 rounded-full transition-colors ${
+                  filter === 'mySpaces' 
+                    ? 'bg-black text-white' 
+                    : 'bg-white text-black hover:bg-gray-100'
+                }`}
+                onClick={() => setFilter('mySpaces')}
+              >
+                My Spaces
+              </button>
+            </div>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="px-6 py-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-colors"
+            >
+              Create Space
+            </button>
+          </div>
+          <div className="flex flex-col items-center justify-center min-h-[400px] text-white">
+            <p className="text-2xl mb-4">No spaces found</p>
+            <p className="text-gray-400 mb-6">Create your first space to get started</p>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="px-6 py-2 bg-white text-black rounded-full hover:bg-gray-100 transition-colors"
+            >
+              Create New Space
+            </button>
+          </div>
+        </main>
+      </div>
+      <CreateSpaceModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={fetchSpaces}
+      />
+    </section>
+  );
+
   return (
     <section className='bg-[#262626] min-h-screen relative'>
       <div className='relative z-10'>
@@ -86,8 +141,11 @@ const Page = () => {
 
           <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 z-10 px-4 md:px-6'>
             {filteredSpaces.map(space => (
-              <div key={space.id} className="flex justify-center">
-                <SpaceCard space={space} />
+              <div key={space._id} className="flex justify-center">
+                <SpaceCard 
+                  space={space} 
+                  onUpdate={fetchSpaces}
+                />
               </div>
             ))}
           </div>
