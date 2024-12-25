@@ -2,7 +2,11 @@ import React from 'react'
 import { Search } from 'lucide-react'
 import { Plus } from 'lucide-react'
 
-const Navbar = () => {
+interface NavbarProps {
+  onCreateSpace: () => void;
+}
+
+const Navbar = ({ onCreateSpace }: NavbarProps) => {
   return (
     <div>
       <div className='bg-black fixed top-0 w-full z-40'>
@@ -29,7 +33,10 @@ const Navbar = () => {
               <Search size={20} className="text-gray-400" />
               </div>
             </div>
-            <button className='flex items-center space-x-2 bg-white px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors text-black'>
+            <button 
+              onClick={onCreateSpace}
+              className='flex items-center space-x-2 bg-white px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors text-black'
+            >
               <span>
                 <Plus size={24} />
               </span>  

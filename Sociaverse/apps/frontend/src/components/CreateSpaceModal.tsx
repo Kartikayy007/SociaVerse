@@ -30,28 +30,35 @@ const modalStyle = {
 };
 
 const CreateSpaceModal = ({ isOpen, onClose, onSuccess }: CreateSpaceModalProps) => {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [isPrivate, setIsPrivate] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    isPublic: false
+  });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     setLoading(true);
+
     try {
-      await axios.post('http://localhost:4000/api/v1/spaces', {
-        name,
-        description,
-        isPrivate
-      }, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+      const response = await axios.post(
+        'http://localhost:4000/api/v1/spaces', 
+        formData,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
         }
-      });
+      );
+      
       onSuccess();
       onClose();
-    } catch (error) {
-      console.error('Failed to create space:', error);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to create space');
+      console.error('Failed to create space:', err);
     } finally {
       setLoading(false);
     }
@@ -71,16 +78,16 @@ const CreateSpaceModal = ({ isOpen, onClose, onSuccess }: CreateSpaceModalProps)
           <TextField
             fullWidth
             label="Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             required
             margin="normal"
           />
           <TextField
             fullWidth
             label="Description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             required
             margin="normal"
             multiline
@@ -89,19 +96,25 @@ const CreateSpaceModal = ({ isOpen, onClose, onSuccess }: CreateSpaceModalProps)
           <FormControlLabel
             control={
               <Checkbox
-                checked={isPrivate}
-                onChange={(e) => setIsPrivate(e.target.checked)}
+                checked={formData.isPublic}
+                onChange={(e) => setFormData({ ...formData, isPublic: e.target.checked })}
               />
             }
             label="Private Space"
             sx={{ my: 2 }}
           />
+          {error && (
+            <Typography color="error" sx={{ mt: 2 }}>
+              {error}
+            </Typography>
+          )}
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2 }}>
             <Button onClick={onClose} disabled={loading}>
               Cancel
             </Button>
             <Button
               type="submit"
+              className='bg-blue-200 text-white'
               variant="contained"
               disabled={loading}
               startIcon={loading && <CircularProgress size={20} />}

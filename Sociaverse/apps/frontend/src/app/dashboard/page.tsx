@@ -1,9 +1,10 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import Navbar from '../../components/Navbar';
 import SpaceCard from '../../components/SpaceCard';
 import CreateSpaceModal from '../../components/CreateSpaceModal';
+import JoinSpaceModal from '../../components/JoinSpaceModal';
 import type { Space } from '../../types/space';
 
 const Page = () => {
@@ -12,6 +13,7 @@ const Page = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
 
   const fetchSpaces = async () => {
     try {
@@ -32,9 +34,22 @@ const Page = () => {
     fetchSpaces();
   }, []);
 
-  const filteredSpaces = filter === 'mySpaces' 
-    ? spaces.filter(space => space.isOwner)
-    : spaces.sort((a, b) => new Date(b.lastVisited).getTime() - new Date(a.lastVisited).getTime());
+  const filteredSpaces = useMemo(() => {
+    if (!spaces.length) return [];
+    
+    switch(filter) {
+      case 'mySpaces':
+        return spaces.filter(space => space.isOwner);
+      case 'lastVisited':
+        return [...spaces].sort((a, b) => {
+          const dateA = new Date(a.lastVisited).getTime();
+          const dateB = new Date(b.lastVisited).getTime();
+          return dateB - dateA;
+        });
+      default:
+        return spaces;
+    }
+  }, [spaces, filter]);
 
   if (loading) return (
     <div className="min-h-screen bg-[#262626] flex items-center justify-center">
@@ -51,7 +66,7 @@ const Page = () => {
   if (spaces.length === 0) return (
     <section className='bg-[#262626] min-h-screen relative'>
       <div className='relative z-10'>
-        <Navbar />
+        <Navbar onCreateSpace={() => setIsModalOpen(true)} />
         <main className='container mx-auto px-4 pt-32'>
           <div className='flex items-center justify-between mb-8'>
             <div className='flex space-x-4'>
@@ -76,22 +91,24 @@ const Page = () => {
                 My Spaces
               </button>
             </div>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-colors"
-            >
-              Create Space
-            </button>
+            <div className='flex space-x-4'>
+              <button
+                onClick={() => setIsJoinModalOpen(true)}
+                className='px-6 py-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700'
+              >
+                Join Space
+              </button>
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className='px-6 py-2 rounded-full bg-green-600 text-white hover:bg-green-700'
+              >
+                Create Space
+              </button>
+            </div>
           </div>
           <div className="flex flex-col items-center justify-center min-h-[400px] text-white">
             <p className="text-2xl mb-4">No spaces found</p>
             <p className="text-gray-400 mb-6">Create your first space to get started</p>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="px-6 py-2 bg-white text-black rounded-full hover:bg-gray-100 transition-colors"
-            >
-              Create New Space
-            </button>
           </div>
         </main>
       </div>
@@ -100,13 +117,18 @@ const Page = () => {
         onClose={() => setIsModalOpen(false)}
         onSuccess={fetchSpaces}
       />
+      <JoinSpaceModal
+        isOpen={isJoinModalOpen}
+        onClose={() => setIsJoinModalOpen(false)}
+        onSuccess={fetchSpaces}
+      />
     </section>
   );
 
   return (
     <section className='bg-[#262626] min-h-screen relative'>
       <div className='relative z-10'>
-        <Navbar />
+        <Navbar onCreateSpace={() => setIsModalOpen(true)} />
         <main className='container mx-auto px-4 pt-32'>
           <div className='flex items-center justify-between mb-8'>
             <div className='flex space-x-4'>
@@ -131,12 +153,20 @@ const Page = () => {
                 My Spaces
               </button>
             </div>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-colors"
-            >
-              Create Space
-            </button>
+            <div className='flex space-x-4'>
+              <button
+                onClick={() => setIsJoinModalOpen(true)}
+                className='px-6 py-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700'
+              >
+                Join Space
+              </button>
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className='px-6 py-2 rounded-full bg-green-600 text-white hover:bg-green-700'
+              >
+                Create Space
+              </button>
+            </div>
           </div>
 
           <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 z-10 px-4 md:px-6'>
@@ -155,9 +185,13 @@ const Page = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={() => {
-          // Refresh spaces after creation
           fetchSpaces();
         }}
+      />
+      <JoinSpaceModal
+        isOpen={isJoinModalOpen}
+        onClose={() => setIsJoinModalOpen(false)}
+        onSuccess={fetchSpaces}
       />
     </section>
   );

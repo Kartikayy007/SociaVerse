@@ -2,25 +2,19 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Lock, MoreVertical, Edit, Trash } from "lucide-react";
+import { User, Lock, MoreVertical, Edit, Trash, Copy } from "lucide-react";
 import axios from 'axios';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
+import { useRouter } from 'next/navigation';
+import { Space } from '../types/space';
 
-interface SpaceProps {
-  space: {
-    _id: string;  
-    name: string;
-    description: string;
-    members: number;
-    lastVisited: string;
-    isOwner: boolean;
-    isPrivate: boolean;
-    ownerId: string;  
-  };
+interface SpaceCardProps {
+  space: Space;
   onUpdate: () => void;
 }
 
-export const SpaceCard = ({ space, onUpdate }: SpaceProps) => {
+const SpaceCard = ({ space, onUpdate }: SpaceCardProps) => {
+  const router = useRouter();
   const [showMenu, setShowMenu] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +41,19 @@ export const SpaceCard = ({ space, onUpdate }: SpaceProps) => {
       console.error('Failed to delete space:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEnterSpace = () => {
+    router.push(`/space/${space._id}`);
+  };
+
+  const copyInviteCode = async () => {
+    try {
+      await navigator.clipboard.writeText(space.inviteCode);
+      // Add toast notification if needed
+    } catch (err) {
+      console.error('Failed to copy code:', err);
     }
   };
 
@@ -107,6 +114,17 @@ export const SpaceCard = ({ space, onUpdate }: SpaceProps) => {
                       <Trash size={16} className="mr-2" />
                       {loading ? 'Deleting...' : 'Delete Space'}
                     </button>
+                
+                  <button 
+                    onClick={copyInviteCode}
+                    className="p-2 hover:bg-white/10 rounded flex items-center w-full px-4 py-2 text-sm"
+                    title="Copy invite code"
+                  >
+                  <code className="bg-white/10 px-2 py-1 rounded text-sm">
+                    {space.inviteCode}
+                  </code>
+                    <Copy size={16} />
+                  </button>
                   </div>
                 </div>
               )}
@@ -118,7 +136,7 @@ export const SpaceCard = ({ space, onUpdate }: SpaceProps) => {
                 {space.isPrivate ? <Lock size={25} className="ml-2" /> : 
                 <>
                 <User size={25} />
-                <span className="ml-2">{space.members}</span>
+                <span className="ml-2">{space.members.length}</span>
                 </> 
                 }
               </span>
@@ -139,7 +157,10 @@ export const SpaceCard = ({ space, onUpdate }: SpaceProps) => {
               </motion.span>
               <p>{space.description}</p>
             </div>
-            <button className="absolute bottom-4 left-4 right-4 z-20 rounded border-2 border-white bg-white py-2 text-center font-mono font-black uppercase text-neutral-800 backdrop-blur transition-colors hover:bg-white/30 hover:text-white flex items-center justify-center gap-2">
+            <button 
+              onClick={handleEnterSpace}
+              className="absolute bottom-4 left-4 right-4 z-20 rounded border-2 border-white bg-white py-2 text-center font-mono font-black uppercase text-neutral-800 backdrop-blur transition-colors hover:bg-white/30 hover:text-white flex items-center justify-center gap-2"
+            >
               {space.isPrivate && <Lock size={20} />}
               {space.isPrivate ? 'Private Space' : 'Enter Space'}
             </button>
@@ -170,6 +191,49 @@ export const SpaceCard = ({ space, onUpdate }: SpaceProps) => {
               </Button>
             </DialogActions>
           </Dialog>
+
+          <div className="bg-black/50 rounded-lg p-6 w-full">
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-xl font-bold text-white">{space.name}</h3>
+              {space.ownerId !== localStorage.getItem('userId') && (
+                <div className="flex items-center gap-2">
+                  <code className="bg-white/10 px-2 py-1 rounded text-sm">
+                    {space.inviteCode}
+                  </code>
+                  <button 
+                    onClick={copyInviteCode}
+                    className="p-2 hover:bg-white/10 rounded"
+                    title="Copy invite code"
+                  >
+                    <Copy size={16} />
+                  </button>
+                </div>
+              )}
+            </div>
+            
+            <p className="text-gray-400 mb-4">{space.description}</p>
+            
+            <div className="flex justify-between items-center">
+              <div className="text-sm text-gray-400">
+                <span>{space.onlineMembers?.length || 0} online</span>
+                <span className="mx-2">•</span>
+                <span>{space.members?.length || 0} members</span>
+              </div>
+              
+            </div>
+
+            {showMenu && (
+              <div className="absolute right-2 top-12 bg-gray-800 rounded-lg shadow-lg py-2">
+                <ul>
+                  {space.members?.map(member => (
+                    <li key={member._id} className="px-4 py-2 text-sm text-gray-300">
+                      {member.username}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         </>
       )}
     </AnimatePresence>
