@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from "framer-motion";
 import { User, Lock, MoreVertical, Edit, Trash, Copy } from "lucide-react";
 import axios from 'axios';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Snackbar, Alert } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { Space } from '../types/space';
 
@@ -17,9 +17,14 @@ const SpaceCard = ({ space, onUpdate }: SpaceCardProps) => {
   const router = useRouter();
   const [showMenu, setShowMenu] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error'
+  });
 
   const handleDelete = async () => {
     setLoading(true);
@@ -30,12 +35,11 @@ const SpaceCard = ({ space, onUpdate }: SpaceCardProps) => {
         }
       });
       setIsDeleting(true);
-      // Delay update to allow animation to complete
       setTimeout(() => {
         onUpdate();
         setDeleteDialogOpen(false);
       }, 500);
-    } catch (error) {
+    } catch (error: any) {
       const message = error.response?.data?.message || 'Failed to delete space';
       setError(message);
       console.error('Failed to delete space:', error);
@@ -51,10 +55,22 @@ const SpaceCard = ({ space, onUpdate }: SpaceCardProps) => {
   const copyInviteCode = async () => {
     try {
       await navigator.clipboard.writeText(space.inviteCode);
-      // Add toast notification if needed
-    } catch (err) {
-      console.error('Failed to copy code:', err);
+      setSnackbar({
+        open: true,
+        message: 'Invite code copied!',
+        severity: 'success'
+      });
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: 'Failed to copy invite code',
+        severity: 'error'
+      });
     }
+  };
+
+  const handleSnackbarClose = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
   };
 
   return (
@@ -96,7 +112,7 @@ const SpaceCard = ({ space, onUpdate }: SpaceCardProps) => {
                     <button
                       onClick={() => {
                         setShowMenu(false);
-                        // Implement edit logic
+                        
                       }}
                       className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
@@ -120,23 +136,21 @@ const SpaceCard = ({ space, onUpdate }: SpaceCardProps) => {
                     className="p-2 hover:bg-white/10 rounded flex items-center w-full px-4 py-2 text-sm"
                     title="Copy invite code"
                   >
+                    <Copy size={16} />
                   <code className="bg-white/10 px-2 py-1 rounded text-sm">
                     {space.inviteCode}
                   </code>
-                    <Copy size={16} />
                   </button>
                   </div>
                 </div>
               )}
             </div>
             <div className="relative z-10 text-white">
-              <span className="mb-3 w-fit rounded-full bg-white/30 px-3 py-2 text-xl font-light text-white flex">
-                
-                
+              <span className="mb-3 w-fit rounded-full bg-white/30 px-3 py-2 text-xl font-light text-white flex justify-center items-center">
                 {space.isPrivate ? <Lock size={25} className="ml-2" /> : 
                 <>
-                <User size={25} />
-                <span className="ml-2">{space.members.length}</span>
+                <div className='bg-green-500 w-2 h-2 rounded-full'></div>
+                <span className="ml-2">{space.onlineMembers?.length || 0}</span>
                 </> 
                 }
               </span>
@@ -192,48 +206,21 @@ const SpaceCard = ({ space, onUpdate }: SpaceCardProps) => {
             </DialogActions>
           </Dialog>
 
-          <div className="bg-black/50 rounded-lg p-6 w-full">
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="text-xl font-bold text-white">{space.name}</h3>
-              {space.ownerId !== localStorage.getItem('userId') && (
-                <div className="flex items-center gap-2">
-                  <code className="bg-white/10 px-2 py-1 rounded text-sm">
-                    {space.inviteCode}
-                  </code>
-                  <button 
-                    onClick={copyInviteCode}
-                    className="p-2 hover:bg-white/10 rounded"
-                    title="Copy invite code"
-                  >
-                    <Copy size={16} />
-                  </button>
-                </div>
-              )}
-            </div>
-            
-            <p className="text-gray-400 mb-4">{space.description}</p>
-            
-            <div className="flex justify-between items-center">
-              <div className="text-sm text-gray-400">
-                <span>{space.onlineMembers?.length || 0} online</span>
-                <span className="mx-2">•</span>
-                <span>{space.members?.length || 0} members</span>
-              </div>
-              
-            </div>
+          <Snackbar
+            open={snackbar.open}
+            autoHideDuration={3000}
+            onClose={handleSnackbarClose}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+          >
+            <Alert 
+              onClose={handleSnackbarClose} 
+              severity={snackbar.severity}
+              sx={{ width: '100%' }}
+            >
+              {snackbar.message}
+            </Alert>
+          </Snackbar>
 
-            {showMenu && (
-              <div className="absolute right-2 top-12 bg-gray-800 rounded-lg shadow-lg py-2">
-                <ul>
-                  {space.members?.map(member => (
-                    <li key={member._id} className="px-4 py-2 text-sm text-gray-300">
-                      {member.username}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
         </>
       )}
     </AnimatePresence>
