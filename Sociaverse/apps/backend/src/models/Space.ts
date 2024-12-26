@@ -1,5 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { customAlphabet } from 'nanoid';
+// import { OnlineMember } from '../types/socket';
 
 const generateInviteCode = customAlphabet('1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ', 6);
 
@@ -9,10 +10,7 @@ export interface ISpace extends Document {
   isPublic: boolean;
   inviteCode: string;
   members: mongoose.Types.ObjectId[];
-  onlineMembers: {
-    userId: mongoose.Types.ObjectId;
-    lastActive: Date;
-  }[];
+  onlineMembers: mongoose.Types.ObjectId[];
   ownerId: mongoose.Types.ObjectId;
 }
 
@@ -30,14 +28,8 @@ const SpaceSchema = new Schema({
     ref: 'User'
   }],
   onlineMembers: [{
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    lastActive: {
-      type: Date,
-      default: Date.now
-    }
+    type: Schema.Types.ObjectId,
+    ref: 'User'
   }],
   ownerId: {
     type: Schema.Types.ObjectId,

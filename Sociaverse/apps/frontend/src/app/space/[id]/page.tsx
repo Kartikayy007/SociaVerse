@@ -43,7 +43,7 @@ export default function SpacePage() {
     setLeaveLoading(true);
     try {
       await axios.post(
-        `http://localhost:4000/api/v1/spaces/${params.id}/leave`, // Changed from space to spaces
+        `http://localhost:4000/api/v1/spaces/${params.id}/leave`, 
         {},
         {
           headers: {
