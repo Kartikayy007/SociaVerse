@@ -9,9 +9,11 @@ export interface ISpace extends Document {
   isPublic: boolean;
   inviteCode: string;
   members: mongoose.Types.ObjectId[];
-  onlineMembers: mongoose.Types.ObjectId[];
+  onlineMembers: {
+    userId: mongoose.Types.ObjectId;
+    lastActive: Date;
+  }[];
   ownerId: mongoose.Types.ObjectId;
-  lastVisited: Date;
 }
 
 const SpaceSchema = new Schema({
@@ -28,17 +30,19 @@ const SpaceSchema = new Schema({
     ref: 'User'
   }],
   onlineMembers: [{
-    type: Schema.Types.ObjectId,
-    ref: 'User'
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    lastActive: {
+      type: Date,
+      default: Date.now
+    }
   }],
   ownerId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
     required: true
-  },
-  lastVisited: {
-    type: Date,
-    default: Date.now
   }
 }, { timestamps: true });
 

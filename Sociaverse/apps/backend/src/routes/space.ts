@@ -149,7 +149,6 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res: Response): Prom
       return;
     }
     
-    space.lastVisited = new Date();
     await space.save();
 
     res.status(200).json({ 

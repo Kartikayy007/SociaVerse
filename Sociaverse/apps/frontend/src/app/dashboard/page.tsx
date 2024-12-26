@@ -156,15 +156,9 @@ const Page = () => {
             <div className='flex space-x-4'>
               <button
                 onClick={() => setIsJoinModalOpen(true)}
-                className='px-6 py-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700'
+                className='px-6 py-2 rounded-full bg-white text-black transition-colors hover:bg-gray-100'
               >
                 Join Space
-              </button>
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className='px-6 py-2 rounded-full bg-green-600 text-white hover:bg-green-700'
-              >
-                Create Space
               </button>
             </div>
           </div>

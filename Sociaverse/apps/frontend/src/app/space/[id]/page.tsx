@@ -1,15 +1,19 @@
 'use client';
 
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Space } from '@/types/space';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
 
 export default function SpacePage() {
+  const router = useRouter();
   const params = useParams();
   const [space, setSpace] = useState<Space | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [leaveLoading, setLeaveLoading] = useState(false);
 
   useEffect(() => {
     const fetchSpaceDetails = async () => {
@@ -34,6 +38,27 @@ export default function SpacePage() {
       fetchSpaceDetails();
     }
   }, [params.id]);
+
+  const handleLeaveSpace = async () => {
+    setLeaveLoading(true);
+    try {
+      await axios.post(
+        `http://localhost:4000/api/v1/spaces/${params.id}/leave`, // Changed from space to spaces
+        {},
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        }
+      );
+      router.push('/dashboard');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to leave space');
+    } finally {
+      setLeaveLoading(false);
+      setShowLeaveDialog(false);
+    }
+  };
 
   if (loading) return <div>Loading space...</div>;
   if (error) return <div>{error}</div>;
@@ -67,6 +92,50 @@ export default function SpacePage() {
             ))}
           </div>
         </div>
+
+        <div className="mt-8">
+          <button
+            onClick={() => setShowLeaveDialog(true)}
+            className="px-4 py-2 bg-red-600/20 text-red-500 rounded-full hover:bg-red-600/30 transition-colors"
+          >
+            Leave Space
+          </button>
+        </div>
+
+        <Dialog
+          open={showLeaveDialog}
+          onClose={() => setShowLeaveDialog(false)}
+          PaperProps={{
+            style: {
+              backgroundColor: '#1a1a1a',
+              color: 'white',
+              borderRadius: '0.5rem'
+            }
+          }}
+        >
+          <DialogTitle>Leave Space?</DialogTitle>
+          <DialogContent>
+            Are you sure you want to leave this space?
+          </DialogContent>
+          <DialogActions>
+            <Button 
+              onClick={() => setShowLeaveDialog(false)}
+              sx={{ color: 'white' }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleLeaveSpace}
+              disabled={leaveLoading}
+              sx={{ 
+                color: '#ef4444',
+                '&:hover': { backgroundColor: 'rgba(239, 68, 68, 0.1)' }
+              }}
+            >
+              {leaveLoading ? 'Leaving...' : 'Leave'}
+            </Button>
+          </DialogActions>
+        </Dialog>
       </div>
     </div>
   );
