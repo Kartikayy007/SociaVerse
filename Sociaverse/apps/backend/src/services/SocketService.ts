@@ -1,72 +1,77 @@
-import { Server, Socket } from 'socket.io';
-import { ClientToServerEvents, ServerToClientEvents, OnlineMember } from '../types/socket';
+import { Server } from 'socket.io';
+import { ClientToServerEvents, ServerToClientEvents } from '../types/socket';
 import { Space } from '../models/Space';
 
-export class SocketService {
-  private io: Server<ClientToServerEvents, ServerToClientEvents>;
-
-  constructor(io: Server) {
-    this.io = io;
-    this.handleConnection = this.handleConnection.bind(this);
-  }
-
-  public initialize(): void {
-    this.io.use(this.authenticateSocket);
-    this.io.on('connection', this.handleConnection);
-  }
-
-  private authenticateSocket(socket: Socket, next: (err?: Error) => void) {
+export function initializeSocket(io: Server<ClientToServerEvents, ServerToClientEvents>) {
+  io.use((socket, next) => {
     const token = socket.handshake.auth.token;
-    if (!token) {
-      return next(new Error('Authentication required'));
-    }
+    if (!token) return next(new Error('Authentication required'));
     socket.data.userId = token;
     next();
-  }
+  });
 
-  private handleConnection(socket: Socket): void {
-    console.log('Client connected:', socket.id);
+  io.on('connection', (socket) => {
+    console.log('👤 Client connected:', socket.id);
 
-    socket.on('join-space', async (data) => {
+    socket.on('join-space', async ({ spaceId }) => {
       try {
-        const space = await Space.findById(data.spaceId);
-        if (!space) throw new Error('Space not found');
+        const space = await Space.findOneAndUpdate(
+          { _id: spaceId, 'members.userId': socket.data.userId },
+          { $addToSet: { onlineMembers: socket.data.userId } },
+          { new: true }
+        ).populate<{ onlineMembers: { _id: string; username: string }[] }>('onlineMembers', 'username');
 
-        socket.join(`space:${data.spaceId}`);
-        await Space.findByIdAndUpdate(data.spaceId, {
-          $addToSet: { onlineMembers: data.userId }
-        });
+        if (!space) {
+          throw new Error('Space not found or not a member');
+        }
 
-        const updatedSpace = await Space.findById(data.spaceId)
-          .populate<{ onlineMembers: OnlineMember[] }>('onlineMembers', 'username');
-
-        this.io.to(`space:${data.spaceId}`).emit('space:users-updated', {
-          spaceId: data.spaceId,
-          users: updatedSpace?.onlineMembers || []
+        socket.join(`space:${spaceId}`);
+        io.to(`space:${spaceId}`).emit('space:users-updated', {
+          spaceId,
+          users: space.onlineMembers.map(m => ({
+            _id: m._id.toString(),
+            username: m.username
+          })),
+          onlineMembersCount: space.onlineMembers.length
         });
       } catch (error) {
-        socket.emit('space:error', (error as Error).message);
+        socket.emit('space:error', error instanceof Error ? error.message : 'Unknown error');
       }
     });
+
+    // socket.on('message', (data: { spaceId: string; message: any }) => {
+    //   io.to(`space:${data.spaceId}`).emit('space:message', data.message);
+    // });
 
     socket.on('disconnecting', async () => {
-      const rooms = Array.from(socket.rooms);
-      for (const room of rooms) {
-        if (room.startsWith('space:')) {
-          const spaceId = room.split(':')[1];
-          await Space.findByIdAndUpdate(spaceId, {
-            $pull: { onlineMembers: socket.data.userId }
-          });
-          
-          const updatedSpace = await Space.findById(spaceId)
-            .populate<{ onlineMembers: OnlineMember[] }>('onlineMembers', 'username');
+      try {
+        const spaceRooms = Array.from(socket.rooms)
+          .filter(room => room.startsWith('space:'))
+          .map(room => room.split(':')[1]);
 
-          this.io.to(room).emit('space:users-updated', {
-            spaceId,
-            users: updatedSpace?.onlineMembers || []
+        if (spaceRooms.length > 0) {
+          await Space.updateMany(
+            { _id: { $in: spaceRooms } },
+            { $pull: { onlineMembers: socket.data.userId } }
+          );
+
+          spaceRooms.forEach(spaceId => {
+            io.to(`space:${spaceId}`).emit('space:users-updated', {
+              spaceId,
+              users: [],
+              onlineMembersCount: 0
+            });
           });
         }
+      } catch (error) {
+        console.error('Disconnect error:', error);
       }
     });
-  }
+
+    socket.on('disconnect', () => {
+      console.log('👋 Client disconnected:', socket.id);
+    });
+  });
+
+  return io;
 }

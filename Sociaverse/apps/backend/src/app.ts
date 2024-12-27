@@ -7,7 +7,7 @@ import authRoutes from './routes/auth';
 import profileRoutes from './routes/profile';
 import spaceRoutes from './routes/space';
 import connectDB from './config/database';
-import { SocketService } from './services/SocketService';
+import { initializeSocket } from './services/SocketService';
 import path from 'path';
 
 // Initialize environment variables
@@ -41,38 +41,12 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/profile', profileRoutes);
 app.use('/api/v1/spaces', spaceRoutes);
 
-// Initialize SocketService
-const socketService = new SocketService(io);
-socketService.initialize();
-
-// Socket.IO connection handling
-io.on('connection', (socket) => {
-  console.log('👤 New client connected:', socket.id);
-
-  // Handle joining a space
-  socket.on('join_space', (spaceId: string) => {
-    socket.join(spaceId);
-    console.log(`User ${socket.id} joined space: ${spaceId}`);
-  });
-
-  // Handle leaving a space
-  socket.on('leave_space', (spaceId: string) => {
-    socket.leave(spaceId);
-    console.log(`User ${socket.id} left space: ${spaceId}`);
-  });
-
-  // Handle messages in a space
-  socket.on('message', (data: { spaceId: string; message: any }) => {
-    io.to(data.spaceId).emit('message', data.message);
-  });
-
-  // Handle disconnection
-  socket.on('disconnect', () => {
-    console.log('👋 Client disconnected:', socket.id);
-  });
-});
+// Initialize Socket.IO
+initializeSocket(io);
 
 // Start server
 httpServer.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
+
+export default app;

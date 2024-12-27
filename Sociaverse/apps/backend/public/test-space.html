@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Space Testing Interface</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .panel { border: 1px solid #ddd; padding: 15px; margin: 10px 0; }
+        .status { padding: 10px; margin: 10px 0; }
+        .success { background: #4CAF50; color: white; }
+        .error { background: #f44336; color: white; }
+        .test-log { height: 200px; overflow-y: auto; background: #f5f5f5; padding: 10px; }
+        .login-panel { margin-bottom: 20px; padding: 20px; background: #f8f8f8; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="panel login-panel">
+            <h3>Authentication</h3>
+            <div class="auth-tabs">
+                <button onclick="showLogin()">Login</button>
+                <button onclick="showSignup()">Signup</button>
+            </div>
+            
+            <div id="loginForm">
+                <input type="text" id="loginEmail" placeholder="Email or Username">
+                <input type="password" id="loginPassword" placeholder="Password">
+                <button onclick="signin()">Login</button>
+            </div>
+        
+            <div id="signupForm" style="display: none;">
+                <input type="text" id="signupUsername" placeholder="Username">
+                <input type="email" id="signupEmail" placeholder="Email">
+                <input type="password" id="signupPassword" placeholder="Password">
+                <button onclick="signup()">Sign Up</button>
+            </div>
+        
+            <div id="authStatus"></div>
+        </div>
+        
+        <h1>Space Testing Interface</h1>
+        
+        <div class="panel">
+            <h3>Connection Status</h3>
+            <div id="connectionStatus" class="status">Disconnected</div>
+        </div>
+
+        <div class="panel">
+            <h3>Create Space</h3>
+            <div class="form-group">
+                <input type="text" id="spaceName" placeholder="Space Name" required>
+                <input type="text" id="spaceDesc" placeholder="Description" required>
+                <select id="spaceType">
+                    <option value="private">Private</option>
+                    <option value="public">Public</option>
+                </select>
+                <button onclick="createSpaceTest()">Create Space</button>
+            </div>
+            <div id="createSpaceStatus"></div>
+        </div>
+
+        <div class="panel">
+            <h3>Join Space</h3>
+            <input type="text" id="inviteCode" placeholder="Invite Code">
+            <button onclick="joinSpace()">Join Space</button>
+        </div>
+
+        <div class="panel">
+            <h3>Current Space</h3>
+            <div id="currentSpace"></div>
+            <h4>Online Members</h4>
+            <div id="onlineMembers"></div>
+        </div>
+
+        <div class="panel">
+            <h3>Test Log</h3>
+            <div id="testLog" class="test-log"></div>
+        </div>
+    </div>
+
+    <script>
+        let authToken = localStorage.getItem('token');
+        
+        async function login() {
+            try {
+                const response = await fetch('http://localhost:4000/api/v1/auth/signin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        login: document.getElementById('loginEmail').value,
+                        password: document.getElementById('loginPassword').value
+                    })
+                });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    authToken = data.data.token;
+                    localStorage.setItem('token', authToken);
+                    localStorage.setItem('userId', data.data.user.id);
+                    log('Login successful');
+                    initializeSocket();
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (error) {
+                log(`Login error: ${error.message}`);
+            }
+        }
+
+        async function createSpace() {
+            try {
+                if (!authToken) {
+                    log('Please login first');
+                    return;
+                }
+
+                const spaceData = {
+                    name: document.getElementById('spaceName').value,
+                    description: document.getElementById('spaceDesc').value,
+                    type: document.getElementById('spaceType').value,
+                    maxMembers: 100
+                };
+
+                log(`Attempting to create space: ${JSON.stringify(spaceData)}`);
+
+                const response = await fetch('http://localhost:4000/api/v1/spaces', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(spaceData)
+                });
+
+                log(`Response status: ${response.status}`);
+                const data = await response.json();
+                log(`Response data: ${JSON.stringify(data)}`);
+                
+                if (response.ok && data.status === 'success') {
+                    log(`Space created successfully: ${data.data.name}`);
+                    document.getElementById('currentSpace').innerHTML = `
+                        <div>Current Space: ${data.data.name}</div>
+                        <div>Space ID: ${data.data._id}</div>
+                        <div>Invite Code: ${data.data.inviteCode}</div>
+                        <div>Type: ${data.data.type}</div>
+                    `;
+                    
+                    // Connect socket to space
+                    if (socket && socket.connected) {
+                        socket.emit('join-space', {
+                            spaceId: data.data._id,
+                            userId: localStorage.getItem('userId')
+                        });
+                    } else {
+                        log('Socket not connected. Please reconnect.');
+                    }
+                } else {
+                    throw new Error(data.message || 'Failed to create space');
+                }
+            } catch (error) {
+                log(`Error creating space: ${error.message}`);
+                document.getElementById('currentSpace').innerHTML = 
+                    `<div class="error">Failed to create space: ${error.message}</div>`;
+            }
+        }
+
+        async function joinSpace() {
+            const code = document.getElementById('inviteCode').value;
+            try {
+                const response = await fetch(`http://localhost:4000/api/v1/spaces/join-by-code/${code}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json();
+                log(`Joined space: ${data.data.name}`);
+                socket.emit('join-space', { spaceId: data.data._id });
+            } catch (error) {
+                log(`Error: ${error.message}`);
+            }
+        }
+
+        function log(message) {
+            const logDiv = document.getElementById('testLog');
+            logDiv.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function showLogin() {
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('signupForm').style.display = 'none';
+        }
+
+        function showSignup() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('signupForm').style.display = 'block';
+        }
+
+        async function signin() {
+            try {
+                const response = await fetch('http://localhost:4000/api/v1/auth/signin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        login: document.getElementById('loginEmail').value,
+                        password: document.getElementById('loginPassword').value
+                    })
+                });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    authToken = data.data.token;
+                    localStorage.setItem('token', authToken);
+                    localStorage.setItem('userId', data.data.user.id);
+                    document.getElementById('authStatus').innerHTML = 
+                        `<div class="success">Logged in as ${data.data.user.username}</div>`;
+                    initializeSocket();
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (error) {
+                document.getElementById('authStatus').innerHTML = 
+                    `<div class="error">Login failed: ${error.message}</div>`;
+            }
+        }
+
+        async function signup() {
+            try {
+                const response = await fetch('http://localhost:4000/api/v1/auth/signup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: document.getElementById('signupUsername').value,
+                        email: document.getElementById('signupEmail').value,
+                        password: document.getElementById('signupPassword').value
+                    })
+                });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    document.getElementById('authStatus').innerHTML = 
+                        `<div class="success">Signup successful! Please login.</div>`;
+                    showLogin();
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (error) {
+                document.getElementById('authStatus').innerHTML = 
+                    `<div class="error">Signup failed: ${error.message}</div>`;
+            }
+        }
+
+        let socket;
+
+        function initializeSocket() {
+            if (socket) {
+                socket.disconnect();
+            }
+
+            socket = io('http://localhost:4000', {
+                auth: { token: authToken },
+                reconnection: true,
+                reconnectionAttempts: 5
+            });
+
+            socket.on('connect', () => {
+                document.getElementById('connectionStatus').className = 'status success';
+                document.getElementById('connectionStatus').textContent = 'Connected';
+                log('Socket connected');
+            });
+
+            socket.on('connect_error', (error) => {
+                log(`Socket connection error: ${error.message}`);
+            });
+
+            socket.on('space:users-updated', (data) => {
+                document.getElementById('onlineMembers').innerHTML = 
+                    `<div>Online users: ${data.onlineMembersCount}</div>` +
+                    data.users.map(user => `<div>${user.username || user._id}</div>`).join('');
+                log(`Users updated in space ${data.spaceId}`);
+            });
+
+            socket.on('disconnect', () => {
+                document.getElementById('connectionStatus').className = 'status error';
+                document.getElementById('connectionStatus').textContent = 'Disconnected';
+                log('Socket disconnected');
+            });
+        }
+
+        async function createSpaceTest() {
+            const statusEl = document.getElementById('createSpaceStatus');
+            const spaceData = {
+                name: document.getElementById('spaceName').value,
+                description: document.getElementById('spaceDesc').value,
+                type: document.getElementById('spaceType').value,
+                maxMembers: 100
+            };
+
+            log('Creating space with data: ' + JSON.stringify(spaceData));
+
+            try {
+                const response = await fetch('http://localhost:4000/api/v1/spaces', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify(spaceData),
+                    credentials: 'include'
+                });
+
+                log('Response status: ' + response.status);
+                
+                const responseText = await response.text();
+                log('Raw response: ' + responseText);
+
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    throw new Error('Invalid JSON response: ' + responseText);
+                }
+
+                if (response.ok && data.status === 'success') {
+                    statusEl.innerHTML = `
+                        <div class="success">
+                            Space created successfully!<br>
+                            ID: ${data.data._id}<br>
+                            Invite Code: ${data.data.inviteCode}
+                        </div>`;
+                    
+                    socket.emit('join-space', {
+                        spaceId: data.data._id,
+                        userId: localStorage.getItem('userId')
+                    });
+                } else {
+                    throw new Error(data.message || 'Failed to create space');
+                }
+            } catch (error) {
+                statusEl.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                log('Error creating space: ' + error.message);
+            }
+        }
+
+        function log(message) {
+            const logEl = document.getElementById('testLog');
+            const time = new Date().toLocaleTimeString();
+            logEl.innerHTML += `<div>[${time}] ${message}</div>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        // Only initialize socket if token exists
+        if (authToken) {
+            initializeSocket();
+        }
+    </script>
+</body>
+</html>

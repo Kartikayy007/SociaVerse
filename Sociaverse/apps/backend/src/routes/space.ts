@@ -1,50 +1,86 @@
 import { Router, Response } from 'express';
-import { Space } from '../models/Space';
+import { Space, SpaceType, MemberRole } from '../models/Space';
 import authMiddleware, { AuthRequest } from '../middleware/authMiddleware';
+import { validateCreateSpace } from '../middleware/validators';
+import mongoose from 'mongoose';
+import { v4 as uuidv4 } from 'uuid';
+
+
 
 const router = Router();
 
 // Create Space
-router.post('/', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const { name, description, isPublic } = req.body;
-    const ownerId = req.user?.id;
+router.post('/', 
+  authMiddleware, 
+  validateCreateSpace,
+  async (req: AuthRequest, res: Response) => {
+    // const session = await startSession();
+    // session.startTransaction();
+    console.log("SS")
+    const inviteCode = uuidv4().substr(0, 8).toUpperCase();
 
-    if (!name || !description) {
-      res.status(400).json({ 
-        status: 'error', 
-        message: 'Name and description are required' 
+    try {
+      const { name, description, type, maxMembers } = req.body;
+      const ownerId = req.user?.id;
+      console.log("A")
+      console.log(mongoose.connection.readyState)
+      const space = new Space({
+        name,
+        description,
+        type: type || SpaceType.PRIVATE,
+        maxMembers: maxMembers || 100,
+        ownerId,
+        inviteCode,
+        members: [{
+          userId: ownerId,
+          role: MemberRole.OWNER,
+          joinedAt: new Date()
+        }]
       });
-      return;
+      console.log("C")
+      await space.save();
+      console.log("B")
+      // await session.commitTransaction();
+      res.status(201).json({ status: 'success', data: space });
+    } catch (error) {
+      // await session.abortTransaction();
+      res.status(500).json({
+        status: 'error',
+        message: (error as Error).message
+      });
+    } finally {
+      // session.endSession();
     }
-
-    const space = await Space.create({
-      name,
-      description,
-      isPublic,
-      ownerId,
-      members: [ownerId] // Add owner as first member
-    });
-
-    res.status(201).json({ status: 'success', data: space });
-  } catch (error) {
-    console.error('Space creation error:', error);
-    res.status(500).json({
-      status: 'error',
-      message: (error as Error).message
-    });
-  }
 });
 
-// Get All Spaces
+// Get All Spaces with Pagination
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
     const userId = req.user?.id;
-    const spaces = await Space.find({
-      members: userId  // Only fetch spaces where user is a member
-    }).sort({ lastVisited: -1 });
 
-    res.status(200).json({ status: 'success', data: spaces });
+    const [spaces, total] = await Promise.all([
+      Space.find({
+        'members.userId': userId
+      })
+        .sort({ lastActivity: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .populate('onlineMembers', 'username'),
+      Space.countDocuments({ 'members.userId': userId })
+    ]);
+
+    res.status(200).json({
+      status: 'success',
+      data: spaces,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
     res.status(500).json({
       status: 'error',
@@ -54,7 +90,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 });
 
 // Join Space
-router.post('/:id/join', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.post('/:id/join', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     const space = await Space.findById(req.params.id);
@@ -64,12 +100,24 @@ router.post('/:id/join', authMiddleware, async (req: AuthRequest, res: Response)
       return;
     }
 
-    if (space.members.includes(userId as any)) {
+    if (space.memberCount >= space.maxMembers) {
+      res.status(400).json({ status: 'error', message: 'Space is full' });
+      return;
+    }
+
+    const existingMember = space.members.find(m => m.userId.toString() === userId);
+    if (existingMember) {
       res.status(400).json({ status: 'error', message: 'Already a member' });
       return;
     }
 
-    space.members.push(userId as any);
+    space.members.push({
+      userId: userId as any,
+      role: MemberRole.MEMBER,
+      joinedAt: new Date()
+    });
+
+    space.lastActivity = new Date();
     await space.save();
 
     res.status(200).json({ status: 'success', data: space });
@@ -82,26 +130,50 @@ router.post('/:id/join', authMiddleware, async (req: AuthRequest, res: Response)
 });
 
 // Join Space with Invite Code
-router.post('/join-by-code/:code', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.post('/join-by-code/:code', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     const space = await Space.findOne({ inviteCode: req.params.code });
     
-    if (!space) {
-      res.status(404).json({ status: 'error', message: 'Invalid invite code' });
+    if (!space || !userId) {
+      res.status(404).json({ status: 'error', message: 'Invalid invite code or user' });
       return;
     }
 
-    if (space.members.includes(userId as any)) {
+    const isMember = space.members.some(member => 
+      member.userId.toString() === userId.toString()
+    );
+
+    if (isMember) {
       res.status(400).json({ status: 'error', message: 'Already a member' });
       return;
     }
 
-    space.members.push(userId as any);
-    await space.save();
+    // Create new member with complete object structure
+    const newMember = {
+      userId: new mongoose.Types.ObjectId(userId),
+      role: MemberRole.MEMBER,
+      joinedAt: new Date()
+    };
 
-    res.status(200).json({ status: 'success', data: space });
+    // Update using findOneAndUpdate to ensure atomic operation
+    const updatedSpace = await Space.findOneAndUpdate(
+      { _id: space._id },
+      { 
+        $push: { members: newMember },
+        $set: { lastActivity: new Date() }
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedSpace) {
+      res.status(500).json({ status: 'error', message: 'Failed to update space' });
+      return;
+    }
+
+    res.status(200).json({ status: 'success', data: updatedSpace });
   } catch (error) {
+    console.error('Join space error:', error);
     res.status(500).json({
       status: 'error',
       message: (error as Error).message
