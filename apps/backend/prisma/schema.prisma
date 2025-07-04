@@ -1,0 +1,229 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Auth/User models (will be synced with Supabase)
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  createdSpaces       Space[]
+  positions           UserPosition[]
+  permissions         SpacePermission[] @relation("UserPermissions")
+  grantedPermissions  SpacePermission[] @relation("GrantedPermissions")
+  sentInvitations     SpaceInvitation[] @relation("InviterInvitations")
+  receivedInvitations SpaceInvitation[] @relation("InviteeInvitations")
+  spaceHistory        UserSpaceHistory[]
+  chatMessages        SpaceChatMessage[]
+  createdObjects      SpaceObject[]
+
+  @@map("users")
+}
+
+// Core Spaces Model (Virtual Worlds/Maps)
+model Space {
+  id                 String   @id @default(uuid())
+  name               String
+  description        String?
+  slug               String   @unique
+  worldType          String   @default("indoor") @map("world_type") // 'indoor', 'outdoor', 'dungeon', 'city', 'forest'
+  theme              String?  @default("modern") // 'medieval', 'modern', 'futuristic', 'nature'
+  width              Int      @default(1000)
+  height             Int      @default(1000)
+  gridSize           Int      @default(32) @map("grid_size")
+  backgroundImageUrl String?  @map("background_image_url")
+  tilesetUrl         String?  @map("tileset_url")
+  musicUrl           String?  @map("music_url")
+  ambientSounds      Json     @default("[]") @map("ambient_sounds")
+  isPublic           Boolean  @default(true) @map("is_public")
+  maxUsers           Int      @default(50) @map("max_users")
+  passwordHash       String?  @map("password_hash")
+  creatorId          String   @map("creator_id")
+  isActive           Boolean  @default(true) @map("is_active")
+  isFeatured         Boolean  @default(false) @map("is_featured")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  lastActivityAt     DateTime @default(now()) @map("last_activity_at")
+  totalVisits        Int      @default(0) @map("total_visits")
+  currentUserCount   Int      @default(0) @map("current_user_count")
+
+  // Relations
+  creator        User                   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  userPositions  UserPosition[]
+  objects        SpaceObject[]
+  permissions    SpacePermission[]
+  invitations    SpaceInvitation[]
+  userHistory    UserSpaceHistory[]
+  chatMessages   SpaceChatMessage[]
+
+  @@map("spaces")
+}
+
+// User Positions Model (Active Sessions)
+model UserPosition {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  spaceId    String   @map("space_id")
+  x          Decimal  @default(0)
+  y          Decimal  @default(0)
+  z          Decimal? @default(0)
+  velocityX  Decimal  @default(0) @map("velocity_x")
+  velocityY  Decimal  @default(0) @map("velocity_y")
+  direction  Decimal  @default(0)
+  avatarUrl  String?  @map("avatar_url")
+  avatarState String  @default("idle") @map("avatar_state")
+  isVisible  Boolean  @default(true) @map("is_visible")
+  joinedAt   DateTime @default(now()) @map("joined_at")
+  lastUpdate DateTime @default(now()) @map("last_update")
+  isOnline   Boolean  @default(true) @map("is_online")
+
+  // Relations
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, spaceId])
+  @@map("user_positions")
+}
+
+// Space Objects Model (Interactive elements)
+model SpaceObject {
+  id              String   @id @default(uuid())
+  spaceId         String   @map("space_id")
+  name            String
+  objectType      String   @map("object_type")
+  x               Decimal
+  y               Decimal
+  z               Decimal? @default(0)
+  width           Int      @default(32)
+  height          Int      @default(32)
+  spriteUrl       String?  @map("sprite_url")
+  animationData   Json?    @map("animation_data")
+  isInteractive   Boolean  @default(false) @map("is_interactive")
+  interactionType String?  @map("interaction_type")
+  interactionData Json?    @map("interaction_data")
+  isSolid         Boolean  @default(false) @map("is_solid")
+  createdBy       String   @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  space   Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  creator User  @relation(fields: [createdBy], references: [id])
+
+  @@map("space_objects")
+}
+
+// Space Permissions Model
+enum PermissionType {
+  OWNER
+  ADMIN
+  MODERATOR
+  BUILDER
+  VISITOR
+}
+
+model SpacePermission {
+  id             String         @id @default(uuid())
+  spaceId        String         @map("space_id")
+  userId         String         @map("user_id")
+  permissionType PermissionType @map("permission_type")
+  grantedBy      String         @map("granted_by")
+  grantedAt      DateTime       @default(now()) @map("granted_at")
+  expiresAt      DateTime?      @map("expires_at")
+
+  // Relations
+  space    Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user     User  @relation("UserPermissions", fields: [userId], references: [id], onDelete: Cascade)
+  granter  User  @relation("GrantedPermissions", fields: [grantedBy], references: [id])
+
+  @@unique([spaceId, userId])
+  @@map("space_permissions")
+}
+
+// Space Invitations Model
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+model SpaceInvitation {
+  id         String           @id @default(uuid())
+  spaceId    String           @map("space_id")
+  inviterId  String           @map("inviter_id")
+  inviteeId  String?          @map("invitee_id")
+  email      String?
+  inviteCode String           @unique @map("invite_code")
+  maxUses    Int              @default(1) @map("max_uses")
+  usesCount  Int              @default(0) @map("uses_count")
+  expiresAt  DateTime?        @map("expires_at")
+  status     InvitationStatus @default(PENDING)
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  // Relations
+  space    Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  inviter  User  @relation("InviterInvitations", fields: [inviterId], references: [id])
+  invitee  User? @relation("InviteeInvitations", fields: [inviteeId], references: [id])
+
+  @@map("space_invitations")
+}
+
+// User Space History Model
+model UserSpaceHistory {
+  id               String   @id @default(uuid())
+  userId           String   @map("user_id")
+  spaceId          String   @map("space_id")
+  firstVisitedAt   DateTime @default(now()) @map("first_visited_at")
+  lastVisitedAt    DateTime @default(now()) @map("last_visited_at")
+  totalVisits      Int      @default(1) @map("total_visits")
+  totalTimeSpent   Int      @default(0) @map("total_time_spent") // in seconds
+  favorite         Boolean  @default(false)
+
+  // Relations
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, spaceId])
+  @@map("user_space_history")
+}
+
+// Space Chat Messages Model
+enum MessageType {
+  TEXT
+  EMOTE
+  SYSTEM
+}
+
+model SpaceChatMessage {
+  id                String      @id @default(uuid())
+  spaceId           String      @map("space_id")
+  userId            String      @map("user_id")
+  messageType       MessageType @map("message_type")
+  content           String
+  x                 Decimal?    // Position where message was sent
+  y                 Decimal?
+  isProximityBased  Boolean     @default(false) @map("is_proximity_based") // Only nearby users see it
+  createdAt         DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("space_chat_messages")
+}

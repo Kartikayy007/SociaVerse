@@ -1,5 +1,32 @@
 # **SociaVerse (Collaborative Virtual Space Application)**
 
+## **🚀 Project Status**
+
+**Current Version**: Development Phase
+**Last Updated**: July 3, 2025
+
+### ✅ **Completed**
+- **Backend Infrastructure**: Express.js server with TypeScript, Supabase auth, Prisma ORM
+- **Database Schema**: Complete spatial/gaming models (Users, Spaces, Positions, Objects, etc.)
+- **Authentication**: Supabase integration with JWT middleware
+- **API Routes**: Comprehensive REST endpoints for spaces, auth, and users
+- **Real-time**: Socket.IO setup for multiplayer functionality
+- **Frontend Setup**: Next.js 15 with shadcn/ui components and Supabase auth
+- **Security**: Helmet, CORS, rate limiting, and validation with Zod
+
+### 🔄 **In Progress**
+- Database connection and migrations
+- Frontend-backend integration
+- Real-time position updates testing
+
+### 📋 **Next Steps**
+1. **Setup**: Follow `SUPABASE_SETUP.md` for credentials
+2. **Database**: Run Prisma migrations
+3. **Integration**: Connect frontend to backend APIs
+4. **Testing**: Validate real-time functionality
+
+---
+
 **Overview**
 
 This project aims to create a collaborative virtual space platform inspired by interactive 2D environments like Gather. Users can create, customise, and interact in virtual spaces with features including video calling, live chat, and an integrated whiteboard.
